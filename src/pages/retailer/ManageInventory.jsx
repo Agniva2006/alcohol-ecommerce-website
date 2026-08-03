@@ -1,16 +1,28 @@
-import { useState } from 'react';
-import { Plus, Search, Pencil, Trash2, Package, AlertTriangle } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Plus, Search, Pencil, Trash2, Package, AlertTriangle, Save, Check } from 'lucide-react';
 import RetailerLayout from '../../components/layout/RetailerLayout';
-import { products, categories } from '../../data/mockData';
+import { categories } from '../../data/mockData';
 import { formatCurrency } from '../../utils/helpers';
+import api from '../../api';
 
 export default function ManageInventory() {
   const [activeTab, setActiveTab] = useState('products');
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
-  const [inventoryProducts, setInventoryProducts] = useState(
-    products.map((p) => ({ ...p, stock: Math.floor(Math.random() * 50) + 5 }))
-  );
+  const [inventoryProducts, setInventoryProducts] = useState([]);
+  const [editingId, setEditingId] = useState(null);
+  const [editPrice, setEditPrice] = useState('');
+  const [editStock, setEditStock] = useState('');
+
+  const fetchInventory = () => {
+    api.get('/retailer/inventory?shopId=SH-JPG-001')
+      .then(res => setInventoryProducts(res.data))
+      .catch(err => console.error('Failed to fetch inventory:', err));
+  };
+
+  useEffect(() => {
+    fetchInventory();
+  }, []);
 
   const filtered = inventoryProducts.filter(
     (p) =>
@@ -23,10 +35,32 @@ export default function ManageInventory() {
     count: inventoryProducts.filter((p) => p.category === cat.id).length,
   }));
 
-  const toggleStock = (id) => {
-    setInventoryProducts((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, inStock: !p.inStock } : p))
-    );
+  const toggleStock = async (product) => {
+    try {
+      await api.post('/retailer/inventory/update', {
+        shopId: 'SH-JPG-001',
+        brandId: product.id,
+        inStock: !product.inStock
+      });
+      fetchInventory();
+    } catch (error) {
+      console.error('Failed to toggle stock', error);
+    }
+  };
+
+  const handleSaveEdit = async (product) => {
+    try {
+      await api.post('/retailer/inventory/update', {
+        shopId: 'SH-JPG-001',
+        brandId: product.id,
+        customPrice: parseFloat(editPrice || product.price),
+        stock: parseInt(editStock || product.stock)
+      });
+      setEditingId(null);
+      fetchInventory();
+    } catch (error) {
+      console.error('Failed to save edit', error);
+    }
   };
 
   return (
@@ -124,27 +158,50 @@ export default function ManageInventory() {
                   </div>
                 </div>
                 <div className="col-span-2 text-sm text-dark-600 capitalize">{product.category}</div>
-                <div className="col-span-2 font-semibold text-dark-900 text-sm">{formatCurrency(product.price)}</div>
+                <div className="col-span-2 text-sm font-semibold text-dark-900">
+                  {editingId === product.id ? (
+                    <input
+                      type="number"
+                      value={editPrice}
+                      onChange={(e) => setEditPrice(e.target.value)}
+                      className="w-20 px-2 py-1 border border-dark-300 rounded text-sm"
+                    />
+                  ) : (
+                    formatCurrency(product.price)
+                  )}
+                </div>
                 <div className="col-span-2">
-                  <button onClick={() => toggleStock(product.id)}>
-                    {product.inStock ? (
-                      <span className="inline-flex items-center gap-1 text-xs font-semibold bg-green-100 text-green-800 px-2.5 py-1 rounded-full">
-                        <span className="w-1.5 h-1.5 bg-green-500 rounded-full"></span> In Stock ({product.stock})
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 text-xs font-semibold bg-red-100 text-red-800 px-2.5 py-1 rounded-full">
-                        <AlertTriangle className="w-3 h-3" /> Out of Stock
-                      </span>
-                    )}
-                  </button>
+                  {editingId === product.id ? (
+                    <input
+                      type="number"
+                      value={editStock}
+                      onChange={(e) => setEditStock(e.target.value)}
+                      className="w-16 px-2 py-1 border border-dark-300 rounded text-sm"
+                    />
+                  ) : (
+                    <button onClick={() => toggleStock(product)}>
+                      {product.inStock ? (
+                        <span className="inline-flex items-center gap-1 text-xs font-semibold bg-green-100 text-green-800 px-2.5 py-1 rounded-full">
+                          <span className="w-1.5 h-1.5 bg-green-500 rounded-full"></span> In Stock ({product.stock})
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-xs font-semibold bg-red-100 text-red-800 px-2.5 py-1 rounded-full">
+                          <AlertTriangle className="w-3 h-3" /> Out of Stock
+                        </span>
+                      )}
+                    </button>
+                  )}
                 </div>
                 <div className="col-span-2 flex items-center justify-end gap-2">
-                  <button className="p-2 text-dark-400 hover:text-primary hover:bg-primary-50 rounded-lg transition-colors">
-                    <Pencil className="w-4 h-4" />
-                  </button>
-                  <button className="p-2 text-dark-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  {editingId === product.id ? (
+                    <button onClick={() => handleSaveEdit(product)} className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors">
+                      <Save className="w-4 h-4" />
+                    </button>
+                  ) : (
+                    <button onClick={() => { setEditingId(product.id); setEditPrice(product.price); setEditStock(product.stock); }} className="p-2 text-dark-400 hover:text-primary hover:bg-primary-50 rounded-lg transition-colors">
+                      <Pencil className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
               </div>
             ))}

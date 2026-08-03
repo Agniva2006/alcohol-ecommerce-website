@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Package, ChevronDown, ChevronUp, RotateCcw, Calendar } from 'lucide-react';
 import useOrderStore from '../store/orderStore';
@@ -15,10 +15,15 @@ const statusConfig = {
 
 export default function OrderHistory() {
   const orders = useOrderStore((s) => s.orders);
+  const fetchOrders = useOrderStore((s) => s.fetchOrders);
   const addItem = useCartStore((s) => s.addItem);
   const toast = useToastStore();
   const [activeTab, setActiveTab] = useState('all');
   const [expandedOrder, setExpandedOrder] = useState(null);
+
+  useEffect(() => {
+    fetchOrders();
+  }, []);
 
   const tabs = [
     { id: 'all', label: 'All' },

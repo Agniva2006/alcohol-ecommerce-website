@@ -6,6 +6,7 @@ export const categories = [
   { id: 'vodka', name: 'Vodka', icon: '🍸', image: '/categories/vodka.jpg' },
   { id: 'rum', name: 'Rum', icon: '🍹', image: '/categories/rum.jpg' },
   { id: 'brandy', name: 'Brandy', icon: '🥂', image: '/categories/brandy.jpg' },
+  { id: 'gin', name: 'Gin', icon: '🍸', image: '/categories/gin.jpg' },
 ];
 
 export const products = [

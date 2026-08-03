@@ -64,7 +64,7 @@ function Navbar() {
     { label: 'Home', path: '/', icon: Home },
     { label: 'Cart', path: '/cart', icon: ShoppingCart },
     { label: 'Wishlist', path: '/wishlist', icon: Heart },
-    { label: 'Orders', path: '/orders', icon: Package },
+    { label: 'Orders', path: '/order-history', icon: Package },
   ];
 
   return (

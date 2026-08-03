@@ -154,11 +154,16 @@ function Footer() {
 
       {/* ── Bottom bar ────────────────────────────────────── */}
       <div className="border-t border-white/5">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <p className="text-dark-500 text-xs">
-            © {currentYear} Sip & Savor. All rights reserved.
-          </p>
-          <p className="text-dark-600 text-xs text-center sm:text-right">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="flex flex-col sm:flex-row items-center gap-4 text-dark-500 text-xs">
+            <span>© {currentYear} Sip & Savor. All rights reserved.</span>
+            <div className="flex gap-4">
+              <Link to="/retailer/login" className="hover:text-accent transition-colors">Partner with Us</Link>
+              <Link to="/delivery/login" className="hover:text-accent transition-colors">Drive with Us</Link>
+              <Link to="/admin/login" className="hover:text-accent transition-colors">Admin Portal</Link>
+            </div>
+          </div>
+          <p className="text-dark-600 text-xs text-center md:text-right">
             🍷 Please drink responsibly. Not for sale to persons under 21.
           </p>
         </div>

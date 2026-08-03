@@ -39,14 +39,19 @@ export default function Login() {
     }
   }, [loginStep]);
 
-  const handleSendOtp = (e) => {
+  const handleSendOtp = async (e) => {
     e.preventDefault();
     const cleaned = phone.replace(/\s/g, '');
     if (cleaned.length < 10) {
       toast.error('Please enter a valid 10-digit phone number');
       return;
     }
-    sendOtp(cleaned);
+    try {
+      await sendOtp(cleaned);
+      toast.info('OTP Sent! (Use test OTP: 1234)');
+    } catch (error) {
+      toast.error('Failed to send OTP');
+    }
   };
 
   const handleOtpChange = (index, value) => {
@@ -66,14 +71,17 @@ export default function Login() {
     }
   };
 
-  const handleVerifyOtp = (e) => {
+  const handleVerifyOtp = async (e) => {
     e.preventDefault();
     const otpStr = otp.join('');
-    if (otpStr.length !== 4) {
-      toast.error('Please enter the 4-digit OTP');
-      return;
+    const cleanedPhone = phone.replace(/\s/g, '');
+    try {
+      await verifyOtp(otpStr, cleanedPhone);
+      toast.success('Logged in successfully!');
+      navigate('/');
+    } catch (error) {
+      toast.error('Invalid OTP. Please enter 1234.');
     }
-    verifyOtp(otpStr);
   };
 
   const handleResendOtp = () => {

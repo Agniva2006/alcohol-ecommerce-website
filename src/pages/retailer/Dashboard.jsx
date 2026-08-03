@@ -10,9 +10,11 @@ import {
   ArrowUpRight,
   ChevronDown,
 } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import RetailerLayout from '../../components/layout/RetailerLayout';
 import { retailerData } from '../../data/mockData';
 import { formatCurrency, formatNumber, cn } from '../../utils/helpers';
+import api from '../../api';
 
 // ─── Stat Card Component ─────────────────────────────────────────────────────
 function StatCard({ icon: Icon, iconBg, iconColor, label, value, trend, trendLabel }) {
@@ -122,8 +124,29 @@ function StatusBadge({ status }) {
 
 // ─── Main Dashboard ──────────────────────────────────────────────────────────
 export default function Dashboard() {
-  const { stats, weeklyData, recentOrders, topProducts } = retailerData;
+  const [orders, setOrders] = useState([]);
   const [period, setPeriod] = useState('This Week');
+
+  useEffect(() => {
+    api.get('/retailer/orders?shopId=SH-JPG-001')
+      .then(res => setOrders(res.data))
+      .catch(err => console.error('Failed to fetch dashboard orders:', err));
+  }, []);
+
+  const totalSales = orders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+  const totalOrders = orders.length;
+  const pendingOrders = orders.filter(o => o.status === 'PLACED' || o.status === 'PAID').length;
+  const deliveredOrders = orders.filter(o => o.status === 'DELIVERED').length;
+
+  const stats = {
+    totalSales: totalSales > 0 ? totalSales : retailerData.stats.totalSales,
+    totalOrders: totalOrders > 0 ? totalOrders : retailerData.stats.totalOrders,
+    pending: pendingOrders,
+    delivered: deliveredOrders > 0 ? deliveredOrders : retailerData.stats.delivered,
+    salesTrend: 12.5
+  };
+
+  const { weeklyData, topProducts } = retailerData;
   const maxQty = Math.max(...topProducts.map((p) => p.quantity));
 
   return (

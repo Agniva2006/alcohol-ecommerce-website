@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { mockUser } from '../data/mockData';
+import api from '../api';
 
 const useAuthStore = create(
   persist(
@@ -21,37 +21,54 @@ const useAuthStore = create(
       },
 
       // ─── Auth Flow ─────────────────────────────────────────────
-      sendOtp: (phone) => {
+      sendOtp: async (phone) => {
         set({ isLoading: true });
-        // Simulate OTP send
-        setTimeout(() => {
+        try {
+          await api.post('/auth/send-otp', { phone });
           set({ loginStep: 'otp', isLoading: false });
-        }, 1000);
+        } catch (error) {
+          console.error(error);
+          set({ isLoading: false });
+          throw error;
+        }
       },
 
-      verifyOtp: (otp) => {
+      verifyOtp: async (otp, phone) => {
         set({ isLoading: true });
-        // Simulate OTP verification — any 4-digit OTP succeeds
-        setTimeout(() => {
-          if (otp.length === 4) {
-            set({
-              user: mockUser,
-              isAuthenticated: true,
-              loginStep: 'done',
-              isLoading: false,
-            });
-          } else {
-            set({ isLoading: false });
+        try {
+          const res = await api.post('/auth/verify-otp', { phone, otp });
+          set({
+            user: res.data.user,
+            isAuthenticated: true,
+            loginStep: 'done',
+            isLoading: false,
+          });
+          if (res.data.token) {
+            localStorage.setItem('auth_token', res.data.token);
           }
-        }, 1500);
+        } catch (error) {
+          console.error(error);
+          set({ isLoading: false });
+          throw error;
+        }
+      },
+
+      register: async (userData) => {
+        set({ isLoading: true });
+        try {
+          const res = await api.post('/auth/register', userData);
+          set({ isLoading: false });
+          return res.data;
+        } catch (error) {
+          console.error(error);
+          set({ isLoading: false });
+          throw error;
+        }
       },
 
       login: () => {
-        set({
-          user: mockUser,
-          isAuthenticated: true,
-          loginStep: 'done',
-        });
+        // Fallback or testing
+        set({ isAuthenticated: true, loginStep: 'done' });
       },
 
       logout: () => {

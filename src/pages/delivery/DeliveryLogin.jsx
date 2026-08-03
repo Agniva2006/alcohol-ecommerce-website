@@ -5,17 +5,15 @@ import {
   Lock,
   Eye,
   EyeOff,
-  Store,
-  TrendingUp,
-  ShoppingCart,
-  BarChart3,
+  Bike,
+  MapPin,
+  Clock,
+  DollarSign,
   ArrowRight,
 } from 'lucide-react';
 import Button from '../../components/common/Button';
-import { cn } from '../../utils/helpers';
-import api from '../../api';
 
-export default function RetailerLogin() {
+export default function DeliveryLogin() {
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -24,12 +22,12 @@ export default function RetailerLogin() {
   const navigate = useNavigate();
 
   const features = [
-    { icon: TrendingUp, text: 'Track real-time sales & revenue' },
-    { icon: ShoppingCart, text: 'Manage orders efficiently' },
-    { icon: BarChart3, text: 'Boost sales with analytics' },
+    { icon: DollarSign, text: 'Earn on your own schedule' },
+    { icon: MapPin, text: 'Deliver in your local area' },
+    { icon: Clock, text: 'Instant payouts available' },
   ];
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
     setError('');
 
@@ -37,51 +35,46 @@ export default function RetailerLogin() {
       setError('Please enter a valid 10-digit mobile number');
       return;
     }
+    if (password.length < 4) {
+      setError('Password must be at least 4 characters');
+      return;
+    }
 
     setLoading(true);
 
-    try {
-      const res = await api.post('/retailer/login', { phone });
+    // Simulate API call
+    setTimeout(() => {
       setLoading(false);
-      localStorage.setItem('retailerToken', res.data.token);
-      localStorage.setItem('retailer', JSON.stringify(res.data.shop));
-      navigate('/retailer/dashboard');
-    } catch (err) {
-      setLoading(false);
-      setError('Login failed. Please check your credentials.');
-    }
+      localStorage.setItem('deliveryToken', 'delivery-dummy-token');
+      navigate('/delivery/dashboard');
+    }, 1200);
   };
 
   return (
     <div className="min-h-screen flex bg-dark-50">
       {/* ─── Left: Branding Panel (Desktop only) ─────────────── */}
-      <div className="hidden lg:flex lg:w-1/2 gradient-hero relative overflow-hidden">
+      <div className="hidden lg:flex lg:w-1/2 bg-accent-600 relative overflow-hidden">
         {/* Decorative circles */}
-        <div className="absolute -top-20 -left-20 w-80 h-80 bg-white/5 rounded-full" />
-        <div className="absolute -bottom-32 -right-32 w-96 h-96 bg-white/5 rounded-full" />
-        <div className="absolute top-1/2 left-1/4 w-48 h-48 bg-accent/10 rounded-full blur-2xl" />
-
+        <div className="absolute -top-20 -left-20 w-80 h-80 bg-white/10 rounded-full" />
+        <div className="absolute -bottom-32 -right-32 w-96 h-96 bg-black/5 rounded-full" />
+        
         <div className="relative z-10 flex flex-col justify-center px-16 w-full">
           {/* Logo */}
           <div className="flex items-center gap-3 mb-12">
-            <div className="w-12 h-12 bg-accent rounded-xl flex items-center justify-center">
-              <span className="text-primary font-bold text-xl">S&S</span>
+            <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center">
+              <span className="text-accent-600 font-bold text-xl">S&S</span>
             </div>
-            <span className="text-white text-2xl font-display font-bold">
+            <span className="text-dark-900 text-2xl font-display font-bold">
               Sip & Savor
             </span>
           </div>
 
-          <h1 className="text-4xl xl:text-5xl font-display font-bold text-white leading-tight mb-4">
-            Manage your store,
-            <br />
-            <span className="text-accent">track orders</span>,
-            <br />
-            boost sales.
+          <h1 className="text-4xl xl:text-5xl font-display font-bold text-dark-900 leading-tight mb-4">
+            Deliver with us,<br />
+            <span className="text-white">earn on your terms.</span>
           </h1>
-          <p className="text-white/70 text-lg mb-10 max-w-md">
-            Access your dashboard to view real-time analytics, manage inventory,
-            and grow your business with Sip & Savor.
+          <p className="text-dark-800 text-lg mb-10 max-w-md">
+            Join our fleet of delivery partners. Set your own hours, deliver premium products, and get paid fast.
           </p>
 
           {/* Feature pills */}
@@ -89,11 +82,11 @@ export default function RetailerLogin() {
             {features.map((feat, i) => (
               <div
                 key={i}
-                className="flex items-center gap-3 text-white/80 animate-fade-in"
+                className="flex items-center gap-3 text-dark-900 animate-fade-in"
                 style={{ animationDelay: `${i * 150}ms` }}
               >
-                <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center flex-shrink-0">
-                  <feat.icon className="w-5 h-5 text-accent" />
+                <div className="w-10 h-10 rounded-lg bg-white/20 flex items-center justify-center flex-shrink-0">
+                  <feat.icon className="w-5 h-5 text-white" />
                 </div>
                 <span className="text-base font-medium">{feat.text}</span>
               </div>
@@ -105,23 +98,16 @@ export default function RetailerLogin() {
       {/* ─── Right: Login Form ────────────────────────────────── */}
       <div className="flex-1 flex items-center justify-center px-4 py-12 sm:px-8">
         <div className="w-full max-w-md animate-fade-in">
-          {/* Store Icon */}
+          {/* Icon */}
           <div className="text-center mb-8">
-            <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center mx-auto mb-5 shadow-premium">
-              <Store className="w-8 h-8 text-white" />
+            <div className="w-16 h-16 bg-accent rounded-2xl flex items-center justify-center mx-auto mb-5 shadow-md">
+              <Bike className="w-8 h-8 text-dark-900" />
             </div>
             <h1 className="text-3xl font-display font-bold text-dark">
-              Store Login
+              Partner Login
             </h1>
             <p className="text-dark-500 mt-2 text-base">
-              Sign in to your retailer dashboard
-            </p>
-          </div>
-
-          {/* Mobile tagline */}
-          <div className="lg:hidden mb-6 p-4 rounded-xl bg-primary-50 border border-primary-100">
-            <p className="text-primary text-sm font-medium text-center">
-              Manage your store, track orders, boost sales
+              Sign in to your delivery dashboard
             </p>
           </div>
 
@@ -146,7 +132,7 @@ export default function RetailerLogin() {
                       setError('');
                     }}
                     maxLength={10}
-                    className="w-full pl-11 pr-4 py-3 border border-dark-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all text-dark placeholder:text-dark-400"
+                    className="w-full pl-11 pr-4 py-3 border border-dark-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent transition-all text-dark placeholder:text-dark-400"
                   />
                 </div>
               </div>
@@ -168,7 +154,7 @@ export default function RetailerLogin() {
                       setPassword(e.target.value);
                       setError('');
                     }}
-                    className="w-full pl-11 pr-12 py-3 border border-dark-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all text-dark placeholder:text-dark-400"
+                    className="w-full pl-11 pr-12 py-3 border border-dark-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent transition-all text-dark placeholder:text-dark-400"
                   />
                   <button
                     type="button"
@@ -191,26 +177,15 @@ export default function RetailerLogin() {
                 </p>
               )}
 
-              {/* Forgot Password */}
-              <div className="flex justify-end mb-6">
-                <button
-                  type="button"
-                  className="text-sm text-primary font-medium hover:underline"
-                >
-                  Forgot Password?
-                </button>
-              </div>
-
               {/* Login Button */}
-              <Button
+              <button
                 type="submit"
-                variant="primary"
-                className="w-full flex items-center justify-center gap-2"
+                className="w-full flex items-center justify-center gap-2 bg-accent hover:bg-accent-600 text-dark-900 font-medium py-3 px-4 rounded-lg transition-colors"
                 disabled={loading}
               >
                 {loading ? (
                   <>
-                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <div className="w-5 h-5 border-2 border-dark-900/30 border-t-dark-900 rounded-full animate-spin" />
                     <span>Signing in...</span>
                   </>
                 ) : (
@@ -219,24 +194,9 @@ export default function RetailerLogin() {
                     <ArrowRight className="w-5 h-5" />
                   </>
                 )}
-              </Button>
-
-              <p className="text-xs text-dark-400 text-center mt-5">
-                By continuing, you agree to Sip & Savor's Retailer Terms of Service
-              </p>
+              </button>
             </form>
           </div>
-
-          {/* Footer */}
-          <p className="text-center mt-6 text-dark-500 text-sm">
-            Not a registered store?{' '}
-            <Link
-              to="/retailer/register"
-              className="text-primary font-medium hover:underline"
-            >
-              Register your store
-            </Link>
-          </p>
         </div>
       </div>
     </div>

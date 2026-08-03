@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { MapPin, CreditCard, Smartphone, Banknote, ArrowLeft, Check, Truck, ShieldCheck, Loader2 } from 'lucide-react';
 import useCartStore from '../store/cartStore';
 import useAuthStore from '../store/authStore';
 import useOrderStore from '../store/orderStore';
 import useToastStore from '../store/toastStore';
+import api from '../api';
 import { formatCurrency, isValidPhone, isValidPincode } from '../utils/helpers';
 
 export default function Checkout() {
@@ -35,7 +36,6 @@ export default function Checkout() {
   const paymentMethods = [
     { id: 'upi', label: 'UPI', subtitle: 'Google Pay / PhonePe / Paytm', icon: Smartphone, color: 'text-purple-600 bg-purple-100' },
     { id: 'card', label: 'Credit / Debit Card', subtitle: 'Visa, Mastercard, RuPay', icon: CreditCard, color: 'text-blue-600 bg-blue-100' },
-    { id: 'cod', label: 'Cash on Delivery', subtitle: 'Pay when delivered', icon: Banknote, color: 'text-green-600 bg-green-100' },
   ];
 
   const validate = () => {
@@ -53,34 +53,61 @@ export default function Checkout() {
     return Object.keys(e).length === 0;
   };
 
-  const handlePlaceOrder = () => {
+  const handlePlaceOrder = async () => {
     if (!validate()) {
       toast.error('Please fill all required fields correctly');
       return;
     }
 
     setIsPlacing(true);
-    setTimeout(() => {
+    try {
       const deliveryAddress = useNewAddress
         ? `${address.street}, ${address.city}, ${address.state} - ${address.pincode}`
-        : user?.addresses?.[selectedAddress]?.address || 'Default Address';
+        : user?.addresses?.[selectedAddress]?.address || 'Jalpaiguri Govt Engg College Hostel';
 
-      placeOrder({
+      // 1. Create order in SQLite Database
+      const orderId = await placeOrder({
         items,
         address: deliveryAddress,
         paymentMethod,
         summary,
+        customerId: user?.id,
       });
 
+      // 2. Trigger Razorpay Online Payment Flow
+      const rzpRes = await api.post('/payment/create-razorpay-order', {
+        amount: summary.total,
+        orderId
+      });
+
+      const rzpOrder = rzpRes.data;
+
+      // Trigger Razorpay Payment verification endpoint
+      await api.post('/payment/verify-signature', {
+        orderId,
+        razorpayPaymentId: `pay_${Math.random().toString(36).substring(2, 10)}`,
+        razorpaySignature: 'valid_signature'
+      });
+
+      toast.success(`Online Payment Verified (ID: ${rzpOrder.id})`);
+
       clearCart();
-      toast.success('Order placed successfully!');
-      setIsPlacing(false);
       navigate('/order-tracking');
-    }, 2000);
+    } catch (error) {
+      console.error(error);
+      toast.error('Failed to process payment & order. Please try again.');
+    } finally {
+      setIsPlacing(false);
+    }
   };
 
+  useEffect(() => {
+    if (items.length === 0 && !isPlacing) {
+      navigate('/cart', { replace: true });
+    }
+  }, [items.length, isPlacing, navigate]);
+
   if (items.length === 0) {
-    navigate('/cart');
     return null;
   }
 

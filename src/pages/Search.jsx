@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { Search as SearchIcon, X, Clock, SlidersHorizontal } from 'lucide-react';
-import { searchProducts, categories, products } from '../data/mockData';
+import { categories } from '../data/mockData';
+import useProductStore from '../store/productStore';
 import ProductCard from '../components/product/ProductCard';
 import { debounce } from '../utils/helpers';
 
@@ -29,20 +30,30 @@ export default function SearchPage() {
   const [showFilters, setShowFilters] = useState(false);
   const [recentSearches] = useState(['Jack Daniels', 'Beer', 'Red Wine', 'Vodka']);
 
+  const products = useProductStore(s => s.products);
+
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
+
+  // Use local search instead of mockData's searchProducts
+  const searchProductsLocal = (q) => {
+    return products.filter(p => 
+      p.name.toLowerCase().includes(q.toLowerCase()) || 
+      (p.brand && p.brand.toLowerCase().includes(q.toLowerCase()))
+    );
+  };
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const debouncedSearch = useCallback(
     debounce((q) => {
       if (q.trim()) {
-        setResults(searchProducts(q));
+        setResults(searchProductsLocal(q));
       } else {
         setResults([]);
       }
     }, 250),
-    []
+    [products]
   );
 
   const handleChange = (value) => {
@@ -52,7 +63,7 @@ export default function SearchPage() {
 
   const handleRecentSearch = (term) => {
     setQuery(term);
-    setResults(searchProducts(term));
+    setResults(searchProductsLocal(term));
   };
 
   const clearSearch = () => {

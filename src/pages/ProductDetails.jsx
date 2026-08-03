@@ -4,7 +4,8 @@ import {
   ArrowLeft, Heart, Share2, Star, Minus, Plus, ShoppingCart,
   Store, MapPin, Truck, Shield, ChevronRight,
 } from 'lucide-react';
-import { getProductById, getProductReviews, getProductsByCategory, stores } from '../data/mockData';
+import useProductStore from '../store/productStore';
+import { stores } from '../data/mockData';
 import { formatCurrency, formatDate } from '../utils/helpers';
 import useCartStore from '../store/cartStore';
 import useWishlistStore from '../store/wishlistStore';
@@ -14,8 +15,11 @@ import ProductCard from '../components/product/ProductCard';
 export default function ProductDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const getProductById = useProductStore((s) => s.getProductById);
+  const allProducts = useProductStore((s) => s.products);
+  
   const product = getProductById(id);
-  const reviews = getProductReviews(id);
+  const reviews = []; // Removed mock reviews
 
   const addItem = useCartStore((s) => s.addItem);
   const toggleItem = useWishlistStore((s) => s.toggleItem);
@@ -27,8 +31,8 @@ export default function ProductDetails() {
 
   const similarProducts = useMemo(() => {
     if (!product) return [];
-    return getProductsByCategory(product.category).filter((p) => p.id !== product.id).slice(0, 6);
-  }, [product]);
+    return allProducts.filter((p) => p.category === product.category && p.id !== product.id).slice(0, 6);
+  }, [product, allProducts]);
 
   const store = product ? stores.find((s) => s.id === product.storeId) : null;
 

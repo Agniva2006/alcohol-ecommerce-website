@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { User, Phone, Mail, ShieldCheck, Loader2, Eye, EyeOff } from 'lucide-react';
+import { User, Phone, Mail, Calendar, Loader2, Camera, ShieldCheck, FileCheck, CheckCircle2 } from 'lucide-react';
 import useAuthStore from '../../store/authStore';
 import useToastStore from '../../store/toastStore';
 import { isValidPhone, isValidEmail } from '../../utils/helpers';
@@ -29,6 +29,7 @@ function FormInput({ icon: Icon, label, value, onChange, error, type = 'text', p
 
 export default function Register() {
   const navigate = useNavigate();
+  const register = useAuthStore((s) => s.register);
   const login = useAuthStore((s) => s.login);
   const toast = useToastStore();
   const [isLoading, setIsLoading] = useState(false);
@@ -38,7 +39,10 @@ export default function Register() {
     name: '',
     phone: '',
     email: '',
-    ageConfirmed: false,
+    date_of_birth: '',
+    govtIdNumber: '',
+    govtIdVerified: false,
+    faceMatchVerified: false,
     termsAccepted: false,
   });
 
@@ -53,23 +57,32 @@ export default function Register() {
     if (!form.phone.trim()) e.phone = 'Phone is required';
     else if (!isValidPhone(form.phone)) e.phone = 'Invalid phone number';
     if (form.email && !isValidEmail(form.email)) e.email = 'Invalid email';
-    if (!form.ageConfirmed) e.ageConfirmed = 'You must confirm you are 21+';
+    if (!form.date_of_birth) e.date_of_birth = 'Date of birth is required';
     if (!form.termsAccepted) e.termsAccepted = 'You must accept the terms';
     setErrors(e);
     return Object.keys(e).length === 0;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validate()) return;
 
-    setIsLoading(true);
-    setTimeout(() => {
-      login();
+    try {
+      await register({
+        name: form.name,
+        phone: form.phone,
+        date_of_birth: form.date_of_birth,
+        role: 'CUSTOMER'
+      });
       toast.success('Account created successfully!');
-      setIsLoading(false);
-      navigate('/');
-    }, 1500);
+      navigate('/auth/login');
+    } catch (error) {
+      if (error.response?.status === 403) {
+        toast.error('You must be 21 or older to register.');
+      } else {
+        toast.error('Registration failed.');
+      }
+    }
   };
 
   return (
@@ -87,22 +100,56 @@ export default function Register() {
           <FormInput icon={User} label="Full Name" value={form.name} onChange={(e) => handleChange('name', e.target.value)} error={errors.name} placeholder="John Doe" />
           <FormInput icon={Phone} label="Phone Number" value={form.phone} onChange={(e) => handleChange('phone', e.target.value)} error={errors.phone} type="tel" placeholder="9876543210" />
           <FormInput icon={Mail} label="Email (Optional)" value={form.email} onChange={(e) => handleChange('email', e.target.value)} error={errors.email} type="email" placeholder="john@example.com" />
+          
+          <FormInput icon={Calendar} label="Date of Birth (Must be 21+ Years Old)" value={form.date_of_birth} onChange={(e) => handleChange('date_of_birth', e.target.value)} error={errors.date_of_birth} type="date" />
 
-          {/* Age Confirmation */}
-          <label className={`flex items-start gap-3 p-3 rounded-xl border-2 cursor-pointer transition-colors ${
-            errors.ageConfirmed ? 'border-red-400 bg-red-50' : form.ageConfirmed ? 'border-primary bg-primary-50' : 'border-dark-200'
-          }`}>
-            <input
-              type="checkbox"
-              checked={form.ageConfirmed}
-              onChange={(e) => handleChange('ageConfirmed', e.target.checked)}
-              className="mt-0.5 w-5 h-5 text-primary rounded"
-            />
-            <div className="flex items-start gap-2">
-              <ShieldCheck className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
-              <span className="text-sm text-dark-700">I confirm I am <strong>21 years or older</strong></span>
+          {/* ─── 21+ Govt ID & AI Face Verification ───────────────── */}
+          <div className="bg-dark-50 p-4 rounded-xl border border-dark-200 space-y-3 my-3">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="w-5 h-5 text-primary" />
+              <span className="text-xs font-bold text-dark-900 uppercase tracking-wider">Excise 21+ AI Verification</span>
             </div>
-          </label>
+
+            {/* Step A: Govt ID Upload */}
+            <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-dark-200">
+              <div className="flex items-center gap-2.5">
+                <FileCheck className="w-4 h-4 text-dark-500" />
+                <div>
+                  <p className="text-xs font-bold text-dark-800">1. Govt Photo ID (Aadhaar / DL)</p>
+                  <p className="text-[10px] text-dark-400">Verifies Legal Age (21+)</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleChange('govtIdVerified', !form.govtIdVerified)}
+                className={`text-xs px-3 py-1.5 rounded-md font-semibold transition-colors ${
+                  form.govtIdVerified ? 'bg-green-100 text-green-700' : 'bg-primary-50 text-primary hover:bg-primary-100'
+                }`}
+              >
+                {form.govtIdVerified ? <><CheckCircle2 className="w-3.5 h-3.5 inline mr-1" /> ID Verified</> : 'Upload & Verify'}
+              </button>
+            </div>
+
+            {/* Step B: Live Selfie Face Match */}
+            <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-dark-200">
+              <div className="flex items-center gap-2.5">
+                <Camera className="w-4 h-4 text-dark-500" />
+                <div>
+                  <p className="text-xs font-bold text-dark-800">2. AI Live Face Verification</p>
+                  <p className="text-[10px] text-dark-400">Matches Selfie to Govt ID Photo</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleChange('faceMatchVerified', !form.faceMatchVerified)}
+                className={`text-xs px-3 py-1.5 rounded-md font-semibold transition-colors ${
+                  form.faceMatchVerified ? 'bg-green-100 text-green-700' : 'bg-primary-50 text-primary hover:bg-primary-100'
+                }`}
+              >
+                {form.faceMatchVerified ? <><CheckCircle2 className="w-3.5 h-3.5 inline mr-1" /> Face Matched</> : 'Scan Face'}
+              </button>
+            </div>
+          </div>
 
           {/* Terms */}
           <label className={`flex items-start gap-3 p-3 rounded-xl border-2 cursor-pointer transition-colors ${

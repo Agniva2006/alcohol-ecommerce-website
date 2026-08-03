@@ -5,7 +5,7 @@ import useCartStore from '../store/cartStore';
 import useToastStore from '../store/toastStore';
 import { formatCurrency } from '../utils/helpers';
 import ProductCard from '../components/product/ProductCard';
-import { products } from '../data/mockData';
+import useProductStore from '../store/productStore';
 
 export default function Cart() {
   const { items, removeItem, updateQuantity, clearCart, applyCoupon, removeCoupon, getOrderSummary } = useCartStore();
@@ -15,6 +15,8 @@ export default function Cart() {
   const couponCode = useCartStore((s) => s.couponCode);
 
   const summary = getOrderSummary();
+
+  const products = useProductStore((s) => s.products);
 
   // Suggested products (not in cart)
   const cartIds = items.map((i) => i.id);

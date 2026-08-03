@@ -1,31 +1,59 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Check, X, Clock, Package, ChevronDown, ChevronUp } from 'lucide-react';
 import RetailerLayout from '../../components/layout/RetailerLayout';
 import { formatCurrency } from '../../utils/helpers';
-
-const initialOrders = [
-  { id: 'ORD12345', customer: 'Anirban S.', phone: '+91 98765 43210', items: [{ name: "Jack Daniel's", qty: 1, price: 2450 }, { name: 'Absolut Vodka', qty: 1, price: 1250 }], total: 4310, time: '12:30 pm', status: 'new', address: 'GBC, Jodhpur Park, Kolkata' },
-  { id: 'ORD12344', customer: 'Vikram D.', phone: '+91 87654 32109', items: [{ name: 'Budweiser Beer', qty: 3, price: 660 }], total: 2150, time: '11:55 am', status: 'new', address: 'Salt Lake Sector V, Kolkata' },
-  { id: 'ORD12343', customer: 'Priya M.', phone: '+91 76543 21098', items: [{ name: 'Sula Wine Red', qty: 2, price: 800 }], total: 1850, time: '11:15 am', status: 'accepted', address: 'Park Street, Kolkata' },
-  { id: 'ORD12342', customer: 'Rahul K.', phone: '+91 65432 10987', items: [{ name: 'Kingfisher Beer', qty: 2, price: 540 }], total: 1140, time: '10:30 am', status: 'completed', address: 'New Town, Kolkata' },
-  { id: 'ORD12341', customer: 'Sanjay R.', phone: '+91 54321 09876', items: [{ name: 'Old Monk Rum', qty: 1, price: 480 }], total: 540, time: '9:45 am', status: 'completed', address: 'Howrah, Kolkata' },
-];
+import api from '../../api';
 
 export default function ManageOrders() {
-  const [orders, setOrders] = useState(initialOrders);
+  const [orders, setOrders] = useState([]);
   const [activeTab, setActiveTab] = useState('new');
   const [expandedOrder, setExpandedOrder] = useState(null);
 
+  const fetchOrders = () => {
+    api.get('/retailer/orders?shopId=SH-JPG-001')
+      .then(res => {
+        const formatted = res.data.map(o => ({
+          id: o.id,
+          customer: o.customer?.name || 'Customer',
+          phone: o.customer?.phone || '+91 9876543210',
+          items: o.items.map(i => ({ name: `Brand ${i.brandId}`, qty: i.quantity, price: i.price })),
+          total: o.totalAmount,
+          time: new Date(o.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          status: o.status === 'PLACED' || o.status === 'PAID' ? 'new' : o.status.toLowerCase(),
+          rawStatus: o.status,
+          address: o.deliveryAddress
+        }));
+        setOrders(formatted);
+      })
+      .catch(err => console.error('Failed to fetch retailer orders:', err));
+  };
+
+  useEffect(() => {
+    fetchOrders();
+    const interval = setInterval(fetchOrders, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
   const tabs = [
     { id: 'new', label: 'New', count: orders.filter((o) => o.status === 'new').length },
-    { id: 'accepted', label: 'Accepted', count: orders.filter((o) => o.status === 'accepted').length },
-    { id: 'completed', label: 'Completed', count: orders.filter((o) => o.status === 'completed').length },
+    { id: 'accepted', label: 'Accepted / Ready', count: orders.filter((o) => o.status === 'accepted' || o.status === 'ready_for_pickup').length },
+    { id: 'completed', label: 'Completed', count: orders.filter((o) => o.status === 'completed' || o.status === 'delivered').length },
   ];
 
-  const filteredOrders = orders.filter((o) => o.status === activeTab);
+  const filteredOrders = orders.filter((o) => {
+    if (activeTab === 'new') return o.status === 'new';
+    if (activeTab === 'accepted') return o.status === 'accepted' || o.status === 'ready_for_pickup';
+    return o.status === 'completed' || o.status === 'delivered';
+  });
 
-  const updateStatus = (orderId, newStatus) => {
-    setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, status: newStatus } : o)));
+  const updateStatus = async (orderId, newStatus) => {
+    try {
+      const dbStatus = newStatus === 'accepted' ? 'READY_FOR_PICKUP' : newStatus === 'completed' ? 'DELIVERED' : 'REJECTED';
+      await api.patch(`/retailer/orders/${orderId}`, { status: dbStatus });
+      fetchOrders();
+    } catch (error) {
+      console.error('Failed to update status', error);
+    }
   };
 
   return (

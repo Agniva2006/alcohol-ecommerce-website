@@ -2,8 +2,11 @@ import { lazy, Suspense, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 
 import useAuthStore from './store/authStore';
+import useProductStore from './store/productStore';
 import Navbar from './components/layout/Navbar';
 import Footer from './components/layout/Footer';
+import DeliveryLayout from './components/layout/DeliveryLayout';
+import AdminLayout from './components/layout/AdminLayout';
 import AgeGateModal from './components/common/AgeGateModal';
 import Toast from './components/common/Toast';
 import LoadingSpinner from './components/common/LoadingSpinner';
@@ -28,6 +31,17 @@ const Dashboard = lazy(() => import('./pages/retailer/Dashboard'));
 const ManageInventory = lazy(() => import('./pages/retailer/ManageInventory'));
 const ManageOrders = lazy(() => import('./pages/retailer/ManageOrders'));
 const Analytics = lazy(() => import('./pages/retailer/Analytics'));
+
+// Delivery pages
+const DeliveryLogin = lazy(() => import('./pages/delivery/DeliveryLogin'));
+const DeliveryDashboard = lazy(() => import('./pages/delivery/DeliveryDashboard'));
+const DeliveryHistory = lazy(() => import('./pages/delivery/DeliveryHistory'));
+
+// Admin pages
+const AdminLogin = lazy(() => import('./pages/admin/AdminLogin'));
+const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'));
+const ManageRetailers = lazy(() => import('./pages/admin/ManageRetailers'));
+const ManageDeliveries = lazy(() => import('./pages/admin/ManageDeliveries'));
 
 // ─── Scroll restoration ─────────────────────────────────────────────────────
 function ScrollToTop() {
@@ -66,6 +80,11 @@ function CustomerLayout({ children }) {
 function App() {
   const isAgeVerified = useAuthStore((s) => s.isAgeVerified);
   const verifyAge = useAuthStore((s) => s.verifyAge);
+  const fetchProducts = useProductStore((s) => s.fetchProducts);
+
+  useEffect(() => {
+    fetchProducts();
+  }, [fetchProducts]);
 
   if (!isAgeVerified) {
     return (
@@ -102,6 +121,21 @@ function App() {
         <Route path="/retailer/inventory" element={<Suspense fallback={<PageLoader />}><ManageInventory /></Suspense>} />
         <Route path="/retailer/orders" element={<Suspense fallback={<PageLoader />}><ManageOrders /></Suspense>} />
         <Route path="/retailer/analytics" element={<Suspense fallback={<PageLoader />}><Analytics /></Suspense>} />
+
+        {/* ─── Delivery Routes ──────────────────────────────── */}
+        <Route path="/delivery/login" element={<Suspense fallback={<PageLoader />}><DeliveryLogin /></Suspense>} />
+        <Route path="/delivery/dashboard" element={<DeliveryLayout title="Dashboard"><Suspense fallback={<PageLoader />}><DeliveryDashboard /></Suspense></DeliveryLayout>} />
+        <Route path="/delivery/active" element={<DeliveryLayout title="Active Deliveries"><Suspense fallback={<PageLoader />}><DeliveryDashboard /></Suspense></DeliveryLayout>} />
+        <Route path="/delivery/history" element={<DeliveryLayout title="History"><Suspense fallback={<PageLoader />}><DeliveryHistory /></Suspense></DeliveryLayout>} />
+        <Route path="/delivery/earnings" element={<DeliveryLayout title="Earnings"><Suspense fallback={<PageLoader />}><DeliveryHistory /></Suspense></DeliveryLayout>} />
+
+        {/* ─── Admin Routes ─────────────────────────────────── */}
+        <Route path="/admin/login" element={<Suspense fallback={<PageLoader />}><AdminLogin /></Suspense>} />
+        <Route path="/admin/dashboard" element={<AdminLayout title="Dashboard"><Suspense fallback={<PageLoader />}><AdminDashboard /></Suspense></AdminLayout>} />
+        <Route path="/admin/retailers" element={<AdminLayout title="Retailers"><Suspense fallback={<PageLoader />}><ManageRetailers /></Suspense></AdminLayout>} />
+        <Route path="/admin/deliveries" element={<AdminLayout title="Deliveries"><Suspense fallback={<PageLoader />}><ManageDeliveries /></Suspense></AdminLayout>} />
+        <Route path="/admin/users" element={<AdminLayout title="Users"><Suspense fallback={<PageLoader />}><ManageRetailers /></Suspense></AdminLayout>} />
+        <Route path="/admin/reports" element={<AdminLayout title="Reports"><Suspense fallback={<PageLoader />}><AdminDashboard /></Suspense></AdminLayout>} />
       </Routes>
     </Router>
   );

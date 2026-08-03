@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Star, MapPin, Clock, ChevronRight } from 'lucide-react';
-import { products, categories, stores } from '../data/mockData';
+import { categories } from '../data/mockData';
 import ProductCard from '../components/product/ProductCard';
+import api from '../api';
 
 function useOnScreen(ref, threshold = 0.1) {
   const [isVisible, setIsVisible] = useState(false);
@@ -34,12 +35,26 @@ function AnimatedSection({ children, className = '', delay = 0 }) {
 
 export default function Home() {
   const [activeCategory, setActiveCategory] = useState(null);
+  const [realStores, setRealStores] = useState([]);
+  const [apiProducts, setApiProducts] = useState([]);
   const categoryScrollRef = useRef(null);
 
-  const trendingProducts = products.filter(p => p.tags?.includes('bestseller'));
+  useEffect(() => {
+    // Fetch nearby shops from backend (e.g. JGEC location)
+    api.get('/shops/nearby?lat=26.5410&lng=88.7122&radius=6')
+      .then(res => setRealStores(res.data))
+      .catch(err => console.error("Failed to fetch shops:", err));
+      
+    // Fetch products
+    api.get('/products')
+      .then(res => setApiProducts(res.data))
+      .catch(err => console.error("Failed to fetch products:", err));
+  }, []);
+
+  const trendingProducts = apiProducts.filter(p => p.featured);
   const filteredProducts = activeCategory
-    ? products.filter(p => p.category === activeCategory)
-    : products;
+    ? apiProducts.filter(p => p.category === activeCategory)
+    : apiProducts;
   const remainingProducts = filteredProducts.filter(p => !p.tags?.includes('bestseller'));
 
   return (
@@ -116,88 +131,60 @@ export default function Home() {
           </div>
         </AnimatedSection>
 
+        {/* ─── Trending Now ───────────────────────────────────── */}
+        <AnimatedSection className="mb-16 pt-8" delay={200}>
+          <div className="flex items-center justify-between mb-8">
+            <h2 className="text-2xl sm:text-3xl font-display font-bold text-dark-900">Trending Now</h2>
+            <Link to="/search" className="text-primary font-medium hover:text-primary-600 flex items-center gap-1 group">
+              View all
+              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+            </Link>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
+            {trendingProducts.length > 0 ? trendingProducts.slice(0, 4).map((product) => (
+              <ProductCard key={product.id} product={product} />
+            )) : (
+              <p className="text-dark-500">Loading products from backend...</p>
+            )}
+          </div>
+        </AnimatedSection>
+
         {/* ─── Nearby Licensed Stores ──────────────────────────────── */}
         <AnimatedSection className="py-6" delay={200}>
           <div className="flex items-center justify-between mb-5">
             <h2 className="text-2xl font-display font-bold text-dark-900">Nearby Licensed Stores</h2>
-            <button className="text-primary font-medium text-sm flex items-center gap-1 hover:underline">
+            <Link to="/search" className="text-primary font-medium text-sm flex items-center gap-1 hover:underline">
               View All <ChevronRight className="w-4 h-4" />
-            </button>
+            </Link>
           </div>
           <div className="flex gap-4 overflow-x-auto scrollbar-hide pb-2 -mx-1 px-1">
-            {stores.map((store) => (
-              <div
-                key={store.id}
-                className="flex-shrink-0 w-[300px] sm:w-[340px] bg-white rounded-2xl shadow-card hover:shadow-card-hover transition-all duration-300 overflow-hidden border border-dark-200 group"
-              >
-                {/* Store image */}
-                <div className="relative h-36 overflow-hidden">
-                  <img
-                    src={store.image}
-                    alt={store.name}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
-                  {/* Open / Closed badge */}
-                  <span
-                    className={`absolute top-3 right-3 text-xs font-bold px-3 py-1 rounded-full ${
-                      store.isOpen
-                        ? 'bg-primary text-white'
-                        : 'bg-red-500 text-white'
-                    }`}
-                  >
-                    {store.isOpen ? '● Open' : '● Closed'}
-                  </span>
-                  <div className="absolute bottom-3 left-3">
-                    <h3 className="text-white font-display font-bold text-lg drop-shadow">{store.name}</h3>
+            {realStores.length > 0 ? realStores.map((store) => (
+              <div key={store.id} className="bg-white rounded-2xl p-6 shadow-sm border border-dark-200 hover:shadow-md transition-shadow cursor-pointer group flex-shrink-0 w-[300px] sm:w-[340px]">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-bold text-dark group-hover:text-primary transition-colors">{store.name}</h3>
+                  <div className="flex items-center gap-1 text-sm font-semibold bg-accent-50 text-accent-700 px-2 py-1 rounded-md">
+                    <Star className="w-3 h-3 fill-accent-500" />
+                    <span>4.5</span>
                   </div>
                 </div>
-                {/* Store info */}
-                <div className="p-4">
-                  <div className="flex items-center gap-1.5 text-dark-500 text-sm mb-2">
-                    <MapPin className="w-3.5 h-3.5" />
-                    <span>{store.location}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="flex items-center gap-1 bg-primary-50 text-primary px-2 py-0.5 rounded-md">
-                        <Star className="w-3.5 h-3.5 fill-primary" />
-                        <span className="text-sm font-bold">{store.rating}</span>
-                      </div>
-                      <span className="text-sm text-dark-400">{store.distance}</span>
-                    </div>
-                    <div className="flex items-center gap-1 text-dark-500 text-sm">
-                      <Clock className="w-3.5 h-3.5" />
-                      <span>{store.deliveryTime}</span>
-                    </div>
-                  </div>
+                <p className="text-dark-500 text-sm mb-4 line-clamp-2">{store.locationName || store.licenseType}</p>
+                <div className="flex items-center gap-4 text-sm text-dark-600 font-medium">
+                  <span className="flex items-center gap-1">
+                    <MapPin className="w-4 h-4 text-dark-400" />
+                    ~3 km
+                  </span>
+                  <span className="flex items-center gap-1 text-green-600">
+                    <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                    {store.status === 'ACTIVE' ? 'Open Now' : 'Closed'}
+                  </span>
                 </div>
               </div>
-            ))}
+            )) : (
+              <p className="text-dark-500">Loading nearby shops from backend...</p>
+            )}
           </div>
         </AnimatedSection>
 
-        {/* ─── Trending Products ───────────────────────────────────── */}
-        {!activeCategory && trendingProducts.length > 0 && (
-          <AnimatedSection className="py-6" delay={300}>
-            <div className="flex items-center justify-between mb-5">
-              <div>
-                <h2 className="text-2xl font-display font-bold text-dark-900">Trending Products</h2>
-                <p className="text-dark-400 text-sm mt-1">Most loved by our customers</p>
-              </div>
-              <Link to="/search" className="text-primary font-medium text-sm flex items-center gap-1 hover:underline">
-                View All <ChevronRight className="w-4 h-4" />
-              </Link>
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5">
-              {trendingProducts.map((product, i) => (
-                <div key={product.id} className="animate-fade-in-up" style={{ animationDelay: `${i * 80}ms` }}>
-                  <ProductCard product={product} />
-                </div>
-              ))}
-            </div>
-          </AnimatedSection>
-        )}
 
         {/* ─── All Products ───────────────────────────────────────── */}
         <AnimatedSection className="py-6 pb-12" delay={400}>
