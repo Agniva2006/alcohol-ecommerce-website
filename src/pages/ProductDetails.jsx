@@ -61,6 +61,11 @@ export default function ProductDetails() {
     toast.success(`${product.name} added to cart`);
   };
 
+  const handleOrderNow = () => {
+    for (let i = 0; i < quantity; i++) addItem(product);
+    navigate('/checkout');
+  };
+
   const handleToggleWishlist = () => {
     const added = toggleItem(product);
     if (added) toast.success('Added to wishlist');
@@ -231,18 +236,25 @@ export default function ProductDetails() {
             </div>
 
             {/* Action Buttons */}
-            <div className="flex gap-3">
+            <div className="flex flex-col sm:flex-row gap-3">
+              <button
+                onClick={handleOrderNow}
+                disabled={!product.inStock}
+                className="flex-1 flex items-center justify-center gap-2 bg-accent hover:bg-accent-600 text-dark-900 font-bold py-4 px-6 rounded-xl transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <span>⚡ Order Now</span>
+              </button>
               <button
                 onClick={handleAddToCart}
                 disabled={!product.inStock}
-                className="flex-1 flex items-center justify-center gap-2 bg-primary hover:bg-primary-800 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-4 rounded-xl transition-all duration-200 hover:shadow-premium"
+                className="flex-1 flex items-center justify-center gap-2 bg-primary hover:bg-primary-800 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-4 px-6 rounded-xl transition-all duration-200 hover:shadow-premium"
               >
                 <ShoppingCart className="w-5 h-5" />
                 Add to Cart
               </button>
               <button
                 onClick={handleToggleWishlist}
-                className={`w-14 h-14 flex items-center justify-center rounded-xl border-2 transition-all duration-200 ${
+                className={`w-14 h-14 flex items-center justify-center rounded-xl border-2 transition-all duration-200 flex-shrink-0 ${
                   isWishlisted
                     ? 'border-red-200 bg-red-50 text-red-500'
                     : 'border-dark-200 bg-white text-dark-400 hover:border-red-300 hover:text-red-500'
@@ -252,7 +264,7 @@ export default function ProductDetails() {
               </button>
               <button
                 onClick={handleShare}
-                className="w-14 h-14 flex items-center justify-center rounded-xl border-2 border-dark-200 bg-white text-dark-400 hover:border-primary-300 hover:text-primary transition"
+                className="w-14 h-14 flex items-center justify-center rounded-xl border-2 border-dark-200 bg-white text-dark-400 hover:border-primary-300 hover:text-primary transition flex-shrink-0"
               >
                 <Share2 className="w-5 h-5" />
               </button>

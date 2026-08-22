@@ -10,7 +10,7 @@ import {
   ArrowUpRight,
   ChevronDown,
 } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import RetailerLayout from '../../components/layout/RetailerLayout';
 import { retailerData } from '../../data/mockData';
 import { formatCurrency, formatNumber, cn } from '../../utils/helpers';
@@ -146,7 +146,7 @@ export default function Dashboard() {
     salesTrend: 12.5
   };
 
-  const { weeklyData, topProducts } = retailerData;
+  const { weeklyData, topProducts, recentOrders = [] } = retailerData;
   const maxQty = Math.max(...topProducts.map((p) => p.quantity));
 
   return (
