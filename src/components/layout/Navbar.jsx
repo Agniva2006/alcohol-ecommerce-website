@@ -11,6 +11,10 @@ import {
   Home,
   Package,
   LogIn,
+  Store,
+  Bike,
+  Shield,
+  ChevronDown,
 } from 'lucide-react';
 import useCartStore from '../../store/cartStore';
 import useAuthStore from '../../store/authStore';
@@ -21,6 +25,7 @@ import { cn, getInitials } from '../../utils/helpers';
 function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isPortalsOpen, setIsPortalsOpen] = useState(false);
   const navigate = useNavigate();
 
   const { items: cartItems } = useCartStore();
@@ -38,9 +43,10 @@ function Navbar() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Close mobile menu on route change
+  // Close mobile menu & portals on route change
   useEffect(() => {
     setIsMobileMenuOpen(false);
+    setIsPortalsOpen(false);
   }, [navigate]);
 
   // Lock body scroll when mobile menu is open
@@ -153,8 +159,76 @@ function Navbar() {
               )}
             </Link>
 
+            {/* Portals Dropdown (Retailer / Driver / Office) */}
+            <div className="relative">
+              <button
+                onClick={() => setIsPortalsOpen(!isPortalsOpen)}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-white/80 hover:text-white hover:bg-white/10 text-xs font-semibold uppercase tracking-wider transition-all duration-200"
+                aria-label="Staff and Partner Portals"
+                aria-expanded={isPortalsOpen}
+              >
+                <span>Portals</span>
+                <ChevronDown size={14} className={cn('transition-transform duration-200', isPortalsOpen && 'rotate-180')} />
+              </button>
+
+              {isPortalsOpen && (
+                <>
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => setIsPortalsOpen(false)}
+                  />
+                  <div className="absolute right-0 mt-2 w-56 rounded-2xl bg-dark-900 border border-white/10 shadow-2xl p-2 z-50 animate-fade-in text-left">
+                    <p className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-dark-400">
+                      Partner & Staff Portals
+                    </p>
+                    <Link
+                      to="/retailer/dashboard"
+                      onClick={() => setIsPortalsOpen(false)}
+                      className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-white hover:bg-white/10 transition-colors"
+                    >
+                      <div className="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center">
+                        <Store size={17} />
+                      </div>
+                      <div>
+                        <div className="text-white font-semibold">Retailer Hub</div>
+                        <div className="text-dark-400 text-xs">Inventory & Orders</div>
+                      </div>
+                    </Link>
+
+                    <Link
+                      to="/delivery/dashboard"
+                      onClick={() => setIsPortalsOpen(false)}
+                      className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-white hover:bg-white/10 transition-colors"
+                    >
+                      <div className="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+                        <Bike size={17} />
+                      </div>
+                      <div>
+                        <div className="text-white font-semibold">Driver Hub</div>
+                        <div className="text-dark-400 text-xs">Deliveries & GPS</div>
+                      </div>
+                    </Link>
+
+                    <Link
+                      to="/admin/dashboard"
+                      onClick={() => setIsPortalsOpen(false)}
+                      className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-white hover:bg-white/10 transition-colors"
+                    >
+                      <div className="w-8 h-8 rounded-lg bg-blue-500/20 text-blue-400 flex items-center justify-center">
+                        <Shield size={17} />
+                      </div>
+                      <div>
+                        <div className="text-white font-semibold">Office / Admin</div>
+                        <div className="text-dark-400 text-xs">System Control</div>
+                      </div>
+                    </Link>
+                  </div>
+                </>
+              )}
+            </div>
+
             {/* Divider */}
-            <div className="w-px h-6 bg-white/15 mx-2" />
+            <div className="w-px h-6 bg-white/15 mx-1" />
 
             {/* User avatar / login */}
             {isAuthenticated && user ? (
@@ -272,6 +346,39 @@ function Navbar() {
                     </span>
                   )}
                 </Link>
+
+                {/* Portals Section in Mobile Drawer */}
+                <div className="pt-2 border-t border-white/5 space-y-1">
+                  <p className="px-4 py-1 text-[11px] font-bold uppercase tracking-wider text-dark-400">
+                    Partner & Staff Portals
+                  </p>
+                  <Link
+                    to="/retailer/dashboard"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-dark-300 hover:text-white hover:bg-white/5 transition-all"
+                  >
+                    <Store size={18} className="text-amber-400" />
+                    <span className="font-medium text-sm">Retailer Portal</span>
+                  </Link>
+
+                  <Link
+                    to="/delivery/dashboard"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-dark-300 hover:text-white hover:bg-white/5 transition-all"
+                  >
+                    <Bike size={18} className="text-emerald-400" />
+                    <span className="font-medium text-sm">Driver / Delivery Hub</span>
+                  </Link>
+
+                  <Link
+                    to="/admin/dashboard"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-dark-300 hover:text-white hover:bg-white/5 transition-all"
+                  >
+                    <Shield size={18} className="text-blue-400" />
+                    <span className="font-medium text-sm">Office / Admin Portal</span>
+                  </Link>
+                </div>
               </div>
 
               {/* Divider */}
