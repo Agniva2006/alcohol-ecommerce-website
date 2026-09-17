@@ -1,4 +1,5 @@
 // prisma/schema.prisma
+// Sip & Savor — Real-Time Production Relational Database Schema
 
 generator client {
   provider = "prisma-client-js"
@@ -10,85 +11,179 @@ datasource db {
 }
 
 model User {
-  id             String    @id @default(uuid())
-  phone          String    @unique
-  name           String?
-  date_of_birth  DateTime?
-  role           String    @default("CUSTOMER") // CUSTOMER, RETAILER, DELIVERY, ADMIN
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
-  
+  id              String           @id @default(uuid())
+  phone           String           @unique
+  email           String?          @unique
+  name            String?
+  dateOfBirth     DateTime?
+  gender          String?
+  role            String           @default("CUSTOMER") // CUSTOMER, RETAILER, RIDER, ADMIN
+  isKycVerified   Boolean          @default(false)
+  kycScore        Float?
+  maskedAadhaar   String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
   // Relations
-  shops          Shop[]    @relation("ShopOwner")
-  customerOrders Order[]   @relation("CustomerOrders")
-  deliveryOrders Order[]   @relation("DeliveryOrders")
+  kycVerifications KYCVerification[]
+  ownedShops       Shop[]          @relation("ShopOwner")
+  customerOrders   Order[]         @relation("CustomerOrders")
+  riderProfile     RiderProfile?
+  deliveryOrders   Order[]         @relation("RiderOrders")
+}
+
+model KYCVerification {
+  id                String    @id @default(uuid())
+  userId            String
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  documentType      String    // AADHAAR, DRIVING_LICENSE, PASSPORT
+  docNumberHash     String
+  extractedDob      DateTime
+  extractedName     String
+  ageAtVerification Int
+  faceMatchScore    Float     // 0.0 - 100.0%
+  livenessPassed    Boolean   @default(true)
+  status            String    @default("VERIFIED") // VERIFIED, REJECTED, PENDING
+  rejectionReason   String?
+  verifiedAt        DateTime  @default(now())
 }
 
 model Shop {
-  id             String    @id // e.g., 'SH-JPG-001'
-  ownerId        String?
-  owner          User?     @relation("ShopOwner", fields: [ownerId], references: [id])
-  name           String
-  licenseType    String
-  locationName   String?
-  lat            Float
-  lng            Float
-  status         String    @default("ACTIVE") // ACTIVE, SUSPENDED
-  createdAt      DateTime  @default(now())
-  
-  inventory      Inventory[]
-  orders         Order[]
+  id                String       @id // e.g. 'SH-JPG-001'
+  ownerId           String?
+  owner             User?        @relation("ShopOwner", fields: [ownerId], references: [id])
+  name              String
+  licenseNumber     String       @unique // e.g. 'WB/JPG/FL-OFF/2026/042'
+  licenseType       String       @default("Foreign Liquor OFF")
+  exciseCircle      String       @default("Jalpaiguri Sadar")
+  gstin             String       @default("19AAACG0123M1Z5")
+  locationName      String
+  address           String
+  lat               Float
+  lng               Float
+  contactPhone      String       @default("+91 98321 00000")
+  isOpen            Boolean      @default(true)
+  openingTime       String       @default("10:00 AM")
+  closingTime       String       @default("08:00 PM")
+  deliveryRadiusKm  Float        @default(6.0)
+  status            String       @default("ACTIVE") // ACTIVE, SUSPENDED, CLOSED
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  inventory         Inventory[]
+  orders            Order[]
 }
 
 model Brand {
-  id             String    @id // e.g., 'BR-BEER-001'
-  name           String
-  category       String
-  subCategory    String?
-  size           String
-  mrp            Float
-  segment        String?
-  
-  inventory      Inventory[]
+  id                String       @id // e.g. 'BR-BEER-001'
+  name              String
+  category          String       // whisky, beer, rum, vodka, gin, wine
+  subCategory       String?
+  size              String       // 750ml, 650ml, 375ml, 330ml, 180ml
+  volumeMl          Int          @default(750)
+  abv               Float        @default(42.8) // Alcohol By Volume %
+  mrp               Float
+  basePrice         Float?
+  exciseDuty        Float?
+  vatPercent        Float        @default(22.0)
+  manufacturer      String       @default("United Breweries Ltd")
+  exciseCode        String       @default("WBE-7492-A")
+  segment           String       @default("Premium")
+  description       String?
+  imageUrl          String?
+
+  inventory         Inventory[]
+  orderItems        OrderItem[]
 }
 
 model Inventory {
-  id             String    @id @default(uuid())
-  shopId         String
-  shop           Shop      @relation(fields: [shopId], references: [id])
-  brandId        String
-  brand          Brand     @relation(fields: [brandId], references: [id])
-  stock          Int       @default(45)
-  customPrice    Float?
-  status         String    @default("IN_STOCK") // IN_STOCK, OUT_OF_STOCK
-  
+  id                String       @id @default(uuid())
+  shopId            String
+  shop              Shop         @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  brandId           String
+  brand             Brand        @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  stock             Int          @default(45)
+  customPrice       Float?
+  batchNumber       String       @default("BATCH-2026-AUG-01")
+  hologramRange     String       @default("WB-EXC-10001..10500")
+  status            String       @default("IN_STOCK") // IN_STOCK, OUT_OF_STOCK
+  lastRestockedAt   DateTime     @default(now())
+
   @@unique([shopId, brandId])
 }
 
+model RiderProfile {
+  id                String       @id @default(uuid())
+  userId            String       @unique
+  user              User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fullName          String
+  phone             String
+  drivingLicenseNo  String       @default("WB-74-2022-0098765")
+  vehicleType       String       @default("Hero Electric EV")
+  vehiclePlate      String       @default("WB-74-E-1234")
+  currentLat        Float        @default(26.5465)
+  currentLng        Float        @default(88.7180)
+  isOnline          Boolean      @default(true)
+  rating            Float        @default(4.9)
+  totalDeliveries   Int          @default(1420)
+  createdAt         DateTime     @default(now())
+}
+
 model Order {
-  id                String    @id @default(uuid())
+  id                String          @id @default(uuid())
+  orderNumber       String          @unique // e.g. 'SIP-2026-0918-001'
   customerId        String
-  customer          User      @relation("CustomerOrders", fields: [customerId], references: [id])
+  customer          User            @relation("CustomerOrders", fields: [customerId], references: [id])
   shopId            String
-  shop              Shop      @relation(fields: [shopId], references: [id])
-  deliveryPartnerId String?
-  deliveryPartner   User?     @relation("DeliveryOrders", fields: [deliveryPartnerId], references: [id])
-  status            String    @default("PLACED") // PLACED, PAID, ACCEPTED, OUT_FOR_DELIVERY, ID_VERIFIED, DELIVERED
+  shop              Shop            @relation(fields: [shopId], references: [id])
+  riderId           String?
+  rider             User?           @relation("RiderOrders", fields: [riderId], references: [id])
+  status            String          @default("PLACED") // PLACED, PAID, ACCEPTED, PACKED, DISPATCHED, OUT_FOR_DELIVERY, DELIVERED, CANCELLED
+  subtotal          Float
+  exciseTax         Float           @default(0.0)
+  deliveryFee       Float           @default(40.0)
+  platformFee       Float           @default(20.0)
   totalAmount       Float
   deliveryAddress   String
-  deliveryLat       Float
-  deliveryLng       Float
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
-  
+  deliveryLat       Float           @default(26.5410)
+  deliveryLng       Float           @default(88.7122)
+  distanceKm        Float           @default(2.8)
+  hologramSerial    String          @unique
+  otpHash           String          @default("1234")
+  paymentMethod     String          @default("RAZORPAY_ONLINE")
+  razorpayOrderId   String?
+  razorpayPaymentId String?
+  razorpaySignature String?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  deliveredAt       DateTime?
+
   items             OrderItem[]
+  exciseAuditLog    ExciseAuditLog?
 }
 
 model OrderItem {
-  id        String   @id @default(uuid())
-  orderId   String
-  order     Order    @relation(fields: [orderId], references: [id])
-  brandId   String
-  quantity  Int
-  price     Float
+  id                String       @id @default(uuid())
+  orderId           String
+  order             Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  brandId           String
+  brand             Brand        @relation(fields: [brandId], references: [id])
+  quantity          Int
+  unitPrice         Float
+  totalPrice        Float
+  exciseCode        String       @default("WBE-7492-A")
+}
+
+model ExciseAuditLog {
+  id                    String    @id @default(uuid())
+  orderId               String    @unique
+  order                 Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  timestamp             DateTime  @default(now())
+  shopLicense           String
+  customerMaskedAadhaar String
+  customerAge           Int
+  totalVolumeMl         Int
+  exciseDutyPaid        Float
+  hologramSerial        String
+  verificationHash      String
 }
