@@ -2,11 +2,14 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Package, Truck, CheckCircle, Clock, MapPin, Phone, MessageCircle, Star, 
-  ShieldCheck, FileText, ArrowLeft, Copy, Check, Navigation, AlertCircle
+  ShieldCheck, FileText, ArrowLeft, Copy, Check, Navigation, AlertCircle, Zap, Activity
 } from 'lucide-react';
 import useOrderStore from '../store/orderStore';
 import useToastStore from '../store/toastStore';
 import { formatCurrency } from '../utils/helpers';
+import { getSocket, joinRoom, leaveRoom } from '../utils/socket';
+import { audioAlert } from '../utils/audioAlert';
+import api from '../api';
 
 export default function OrderTracking() {
   const navigate = useNavigate();
@@ -17,23 +20,11 @@ export default function OrderTracking() {
 
   const [eta, setEta] = useState(22);
   const [copiedOtp, setCopiedOtp] = useState(false);
-  const [deliveryOtp] = useState('8492');
-
-  // Auto-advance tracking steps for simulation
-  useEffect(() => {
-    if (trackingStep >= 5) return;
-    const timer = setInterval(() => {
-      advanceTracking();
-    }, 6000);
-    return () => clearInterval(timer);
-  }, [trackingStep, advanceTracking]);
-
-  // Countdown ETA
-  useEffect(() => {
-    if (trackingStep >= 5 || eta <= 0) return;
-    const timer = setInterval(() => setEta((prev) => Math.max(0, prev - 1)), 60000);
-    return () => clearInterval(timer);
-  }, [trackingStep, eta]);
+  const [deliveryOtp, setDeliveryOtp] = useState('1234');
+  const [isSimulatingGps, setIsSimulatingGps] = useState(false);
+  const [socketConnected, setSocketConnected] = useState(false);
+  const [liveGpsStep, setLiveGpsStep] = useState(null);
+  const [hologramId, setHologramId] = useState('WB-EXC-99887766');
 
   const order = activeOrder || {
     id: 'ff1fafcd-d52c-4e7b-a36c-0691e5246b97',
@@ -41,11 +32,69 @@ export default function OrderTracking() {
     address: 'Jalpaiguri Govt Engineering College, Hostel No. 3, Jalpaiguri 735102',
   };
 
+  // Socket.IO Real-Time Connection
+  useEffect(() => {
+    const socket = getSocket();
+    const orderRoom = `order_${order.id}`;
+
+    const handleConnect = () => setSocketConnected(true);
+    const handleDisconnect = () => setSocketConnected(false);
+
+    if (socket.connected) {
+      setSocketConnected(true);
+    }
+
+    socket.on('connect', handleConnect);
+    socket.on('disconnect', handleDisconnect);
+
+    joinRoom(orderRoom);
+
+    // Listen for live status changes from Retailer or Rider
+    socket.on('order:status_updated', (updatedOrder) => {
+      if (updatedOrder && updatedOrder.id === order.id) {
+        audioAlert.playStatusPing();
+        toast.info(`⚡ Status Update: Order #${order.id.slice(0, 6)} is now ${updatedOrder.status}`);
+        advanceTracking();
+      }
+    });
+
+    // Listen for live GPS coordinates streamed from Rider
+    socket.on('rider:location_update', (gpsData) => {
+      setLiveGpsStep(gpsData);
+      if (gpsData.etaMinutes) {
+        setEta(gpsData.etaMinutes);
+      }
+    });
+
+    return () => {
+      leaveRoom(orderRoom);
+      socket.off('connect', handleConnect);
+      socket.off('disconnect', handleDisconnect);
+      socket.off('order:status_updated');
+      socket.off('rider:location_update');
+    };
+  }, [order.id, advanceTracking, toast]);
+
+  // Fetch initial telemetry from backend if available
+  useEffect(() => {
+    if (order.id) {
+      api.get(`/orders/${order.id}/track`)
+        .then((res) => {
+          if (res.data) {
+            if (res.data.otp) setDeliveryOtp(res.data.otp);
+            if (res.data.hologramId) setHologramId(res.data.hologramId);
+            if (res.data.estimatedDeliveryMinutes) setEta(res.data.estimatedDeliveryMinutes);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [order.id]);
+
   const steps = [
     { id: 1, label: 'Order Confirmed & Paid', description: 'Excise digital signature verified via Razorpay', icon: CheckCircle, time: 'Just now' },
     { id: 2, label: 'Store Packaging & Hologram Check', description: 'FL OFF Shop scanned bottle batch & excise barcode', icon: Package, time: '1 min ago' },
     { id: 3, label: 'Rider Assigned & Reached Store', description: 'Delivery partner arrived at store counter', icon: Truck, time: '3 mins ago' },
-    { id: 4, label: 'Out for Delivery', description: 'Rider en route to your hostel doorstep (Live GPS)', icon: Navigation, time: 'In transit' },
+    { id: 4, label: 'Out for Delivery (Live GPS)', description: 'Rider en route to your hostel doorstep', icon: Navigation, time: 'In transit' },
     { id: 5, label: 'Doorstep 21+ Handover Complete', description: 'Face matched & alcohol package delivered safely', icon: CheckCircle, time: 'Done' },
   ];
 
@@ -60,22 +109,51 @@ export default function OrderTracking() {
   const handleCopyOtp = () => {
     navigator.clipboard.writeText(deliveryOtp);
     setCopiedOtp(true);
-    toast.success('Doorbell OTP copied to clipboard');
+    toast.success('Doorstep OTP copied to clipboard');
     setTimeout(() => setCopiedOtp(false), 2000);
   };
 
-  const handleDownloadInvoice = () => {
-    toast.info('Downloading official West Bengal Excise Tax Invoice...');
+  const handleTriggerGpsSimulation = async () => {
+    setIsSimulatingGps(true);
+    toast.info('⚡ Streaming Real-Time Rider GPS coordinates over Socket.IO...');
+    try {
+      await api.post(`/orders/${order.id}/simulate-gps`);
+      setTimeout(() => setIsSimulatingGps(false), 10000);
+    } catch {
+      setIsSimulatingGps(false);
+    }
   };
+
+  const handleDownloadInvoice = () => {
+    toast.info(`Official West Bengal Excise Invoice (${hologramId}) generated.`);
+  };
+
+  // Calculate moving rider position
+  let riderProgress = '45%';
+  if (liveGpsStep) {
+    riderProgress = `${Math.min(90, 20 + (liveGpsStep.step / liveGpsStep.totalSteps) * 70)}%`;
+  } else if (trackingStep === 1) riderProgress = '22%';
+  else if (trackingStep === 2) riderProgress = '35%';
+  else if (trackingStep === 3) riderProgress = '52%';
+  else if (trackingStep === 4) riderProgress = '72%';
+  else if (trackingStep >= 5) riderProgress = '88%';
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-fade-in">
-      <button 
-        onClick={() => navigate('/')} 
-        className="inline-flex items-center gap-2 text-primary hover:text-primary-800 mb-6 font-medium transition-colors"
-      >
-        <ArrowLeft className="w-4 h-4" /> Back to Store
-      </button>
+      <div className="flex items-center justify-between mb-6">
+        <button 
+          onClick={() => navigate('/')} 
+          className="inline-flex items-center gap-2 text-primary hover:text-primary-800 font-medium transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4" /> Back to Store
+        </button>
+
+        {/* Live Real-Time Socket Indicator */}
+        <div className="flex items-center gap-2 px-3 py-1 bg-dark-100 rounded-full text-xs font-semibold">
+          <span className={`w-2 h-2 rounded-full ${socketConnected ? 'bg-green-500 animate-pulse' : 'bg-amber-500'}`} />
+          <span className="text-dark-700">{socketConnected ? '⚡ Real-Time Socket Connected' : 'Connecting WebSocket...'}</span>
+        </div>
+      </div>
 
       {/* Order Status Banner */}
       <div className="bg-white rounded-3xl shadow-card border border-dark-200/50 p-6 sm:p-8 mb-6 relative overflow-hidden">
@@ -92,6 +170,7 @@ export default function OrderTracking() {
             </div>
             <p className="text-dark-500 text-sm">
               Estimated Delivery: <strong className="text-primary font-bold">{trackingStep >= 5 ? 'Delivered' : `${eta} mins`}</strong>
+              <span className="text-xs text-dark-400 ml-3">Excise Hologram: <code className="bg-dark-100 px-1.5 py-0.5 rounded font-mono text-dark-800">{hologramId}</code></span>
             </p>
           </div>
 
@@ -129,15 +208,24 @@ export default function OrderTracking() {
         </div>
       </div>
 
-      {/* ─── LIVE GPS RADAR MAP SIMULATOR ───────────────────────────── */}
+      {/* ─── LIVE GPS RADAR MAP ───────────────────────────── */}
       <div className="bg-white rounded-3xl shadow-card border border-dark-200/50 p-6 mb-6 overflow-hidden">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="font-display font-bold text-dark-900 text-lg flex items-center gap-2">
-            <Navigation className="w-5 h-5 text-primary" /> Live Delivery Map Radar
-          </h2>
-          <span className="text-xs font-semibold text-dark-500 bg-dark-100 px-3 py-1 rounded-full">
-            Denguajhar FL OFF → JGEC Campus (2.8 km)
-          </span>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+          <div>
+            <h2 className="font-display font-bold text-dark-900 text-lg flex items-center gap-2">
+              <Navigation className="w-5 h-5 text-primary" /> Live GPS Delivery Map
+            </h2>
+            <p className="text-xs text-dark-500">Denguajhar FL OFF Shop → JGEC Campus (2.8 km corridor)</p>
+          </div>
+
+          <button
+            onClick={handleTriggerGpsSimulation}
+            disabled={isSimulatingGps}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-primary to-primary-800 text-white font-bold text-xs shadow-md hover:opacity-95 transition-all disabled:opacity-50"
+          >
+            <Zap className="w-3.5 h-3.5 text-accent animate-spin" />
+            {isSimulatingGps ? 'Streaming GPS Route...' : 'Simulate Live Rider GPS Stream'}
+          </button>
         </div>
 
         <div className="relative bg-gradient-to-br from-slate-900 via-dark-900 to-indigo-950 rounded-2xl h-72 flex items-center justify-center overflow-hidden border border-white/10 shadow-inner">
@@ -171,11 +259,11 @@ export default function OrderTracking() {
             </span>
           </div>
 
-          {/* Moving Rider Pin (Center) */}
+          {/* Moving Rider Pin (Dynamic position based on WebSocket stream) */}
           <div 
-            className="absolute flex flex-col items-center transition-all duration-1000 z-20"
+            className="absolute flex flex-col items-center transition-all duration-700 z-20"
             style={{
-              left: trackingStep === 1 ? '22%' : trackingStep === 2 ? '35%' : trackingStep === 3 ? '52%' : trackingStep === 4 ? '72%' : '86%',
+              left: riderProgress,
               top: '32%'
             }}
           >
@@ -185,8 +273,8 @@ export default function OrderTracking() {
                 🛵
               </div>
             </div>
-            <span className="text-[10px] font-bold text-dark bg-accent px-2 py-0.5 rounded-full mt-1 shadow-md">
-              Rohan (2.8 km away)
+            <span className="text-[10px] font-bold text-dark bg-accent px-2 py-0.5 rounded-full mt-1 shadow-md whitespace-nowrap">
+              Rohan {liveGpsStep ? `(${liveGpsStep.speed} km/h • ETA ${liveGpsStep.etaMinutes}m)` : '(In Transit)'}
             </span>
           </div>
 
