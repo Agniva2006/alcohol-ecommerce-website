@@ -1,0 +1,94 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id             String    @id @default(uuid())
+  phone          String    @unique
+  name           String?
+  date_of_birth  DateTime?
+  role           String    @default("CUSTOMER") // CUSTOMER, RETAILER, DELIVERY, ADMIN
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  
+  // Relations
+  shops          Shop[]    @relation("ShopOwner")
+  customerOrders Order[]   @relation("CustomerOrders")
+  deliveryOrders Order[]   @relation("DeliveryOrders")
+}
+
+model Shop {
+  id             String    @id // e.g., 'SH-JPG-001'
+  ownerId        String?
+  owner          User?     @relation("ShopOwner", fields: [ownerId], references: [id])
+  name           String
+  licenseType    String
+  locationName   String?
+  lat            Float
+  lng            Float
+  status         String    @default("ACTIVE") // ACTIVE, SUSPENDED
+  createdAt      DateTime  @default(now())
+  
+  inventory      Inventory[]
+  orders         Order[]
+}
+
+model Brand {
+  id             String    @id // e.g., 'BR-BEER-001'
+  name           String
+  category       String
+  subCategory    String?
+  size           String
+  mrp            Float
+  segment        String?
+  
+  inventory      Inventory[]
+}
+
+model Inventory {
+  id             String    @id @default(uuid())
+  shopId         String
+  shop           Shop      @relation(fields: [shopId], references: [id])
+  brandId        String
+  brand          Brand     @relation(fields: [brandId], references: [id])
+  stock          Int       @default(45)
+  customPrice    Float?
+  status         String    @default("IN_STOCK") // IN_STOCK, OUT_OF_STOCK
+  
+  @@unique([shopId, brandId])
+}
+
+model Order {
+  id                String    @id @default(uuid())
+  customerId        String
+  customer          User      @relation("CustomerOrders", fields: [customerId], references: [id])
+  shopId            String
+  shop              Shop      @relation(fields: [shopId], references: [id])
+  deliveryPartnerId String?
+  deliveryPartner   User?     @relation("DeliveryOrders", fields: [deliveryPartnerId], references: [id])
+  status            String    @default("PLACED") // PLACED, PAID, ACCEPTED, OUT_FOR_DELIVERY, ID_VERIFIED, DELIVERED
+  totalAmount       Float
+  deliveryAddress   String
+  deliveryLat       Float
+  deliveryLng       Float
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  
+  items             OrderItem[]
+}
+
+model OrderItem {
+  id        String   @id @default(uuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id])
+  brandId   String
+  quantity  Int
+  price     Float
+}
